@@ -1,0 +1,22 @@
+config-version: 1
+
+language:
+  default: en_US
+
+profile:
+  default-visibility: PUBLIC
+  maximum-biography-length: 120
+  default-theme: BLUE
+  themes: [BLUE, GREEN, RED, PURPLE, GOLD]
+
+gui:
+  title: "<dark_gray>Profile: <white>{player}"
+  size: 54
+
+metrics:
+  enabled: true
+  bstats-id: 0
+
+updates:
+  enabled: true
+  modrinth-project-id: ""
