@@ -1,0 +1,42 @@
+name: Publish Modrinth Public
+on: { workflow_dispatch: {} }
+permissions: { contents: read }
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '25' }
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build release JAR
+        run: chmod +x gradlew && ./gradlew clean shadowJar --no-daemon
+      - name: Resolve draft, upload version and submit for review
+        shell: bash
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          PROJECT_NAME: mProfile
+          VERSION_NUMBER: 1.0.0
+          JAR_PATH: build/libs/mProfile-1.0.0.jar
+          SOURCE_URL: https://github.com/miklires/mProfile
+        run: |
+          set -euo pipefail
+          api="https://api.modrinth.com/v2"
+          auth="Authorization: $MODRINTH_TOKEN"
+          agent="User-Agent: miklires/$PROJECT_NAME/1.0.0"
+          user_id=$(curl -fsS -H "$auth" -H "$agent" "$api/user" | jq -r '.id')
+          projects=$(curl -fsS -H "$auth" -H "$agent" "$api/user/$user_id/projects")
+          project_id=$(jq -r --arg name "$PROJECT_NAME" '.[] | select((.title|ascii_downcase)==($name|ascii_downcase)) | .id' <<<"$projects" | head -n1)
+          if [ -z "$project_id" ]; then echo "Draft project not found: $PROJECT_NAME"; exit 1; fi
+          versions=$(curl -fsS -H "$auth" -H "$agent" "$api/project/$project_id/version")
+          if ! jq -e --arg version "$VERSION_NUMBER" '.[] | select(.version_number==$version)' <<<"$versions" >/dev/null; then
+            data=$(jq -nc --arg name "$PROJECT_NAME $VERSION_NUMBER" --arg number "$VERSION_NUMBER" --arg project "$project_id" '{name:$name,version_number:$number,project_id:$project,dependencies:[],game_versions:["26.2"],version_type:"release",loaders:["paper","purpur","folia"],featured:true,status:"listed",file_parts:["file"],primary_file:"file"}')
+            curl -fsS -X POST -H "$auth" -H "$agent" -F "data=$data" -F "file=@$JAR_PATH;type=application/java-archive" "$api/version" >/dev/null
+            echo "Uploaded $PROJECT_NAME $VERSION_NUMBER"
+          else
+            echo "Version $VERSION_NUMBER already exists; upload skipped"
+          fi
+          patch=$(jq -nc --arg source "$SOURCE_URL" --arg issues "$SOURCE_URL/issues" '{status:"processing",requested_status:"approved",source_url:$source,issues_url:$issues}')
+          curl -fsS -X PATCH -H "$auth" -H "$agent" -H 'Content-Type: application/json' --data "$patch" "$api/project/$project_id"
+          result=$(curl -fsS -H "$auth" -H "$agent" "$api/project/$project_id")
+          echo "$result" | jq '{id,slug,title,status,requested_status,queued,versions:[.versions[]?]}'
