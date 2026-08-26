@@ -19,6 +19,9 @@ jobs:
           VERSION_NUMBER: 1.0.0
           JAR_PATH: build/libs/mProfile-1.0.0.jar
           SOURCE_URL: https://github.com/miklires/mProfile
+          SUMMARY: Player profiles, statistics, privacy controls, and ecosystem integrations for Paper, Purpur, and Folia.
+          CATEGORIES: '["social","management"]'
+          ADDITIONAL_CATEGORIES: '["utility"]'
         run: |
           set -euo pipefail
           api="https://api.modrinth.com/v2"
@@ -35,7 +38,9 @@ jobs:
           else
             echo "Version $VERSION_NUMBER already exists; upload skipped"
           fi
-          patch=$(jq -nc --arg source "$SOURCE_URL" --arg issues "$SOURCE_URL/issues" '{status:"processing",requested_status:"approved",source_url:$source,issues_url:$issues}')
+          patch=$(jq -nc --rawfile body README.md --arg description "$SUMMARY" --arg source "$SOURCE_URL" --arg issues "$SOURCE_URL/issues" --arg license "$SOURCE_URL/blob/main/LICENSE" --argjson categories "$CATEGORIES" --argjson additional "$ADDITIONAL_CATEGORIES" '{description:$description,body:$body,categories:$categories,additional_categories:$additional,source_url:$source,issues_url:$issues,license_id:"MIT",license_url:$license,client_side:"unsupported",server_side:"required"}')
           curl -fsS -X PATCH -H "$auth" -H "$agent" -H 'Content-Type: application/json' --data "$patch" "$api/project/$project_id"
           result=$(curl -fsS -H "$auth" -H "$agent" "$api/project/$project_id")
-          echo "$result" | jq '{id,slug,title,status,requested_status,queued,versions:[.versions[]?]}'
+          disclosures=$(curl -fsS -H "$auth" -H "$agent" "https://api.modrinth.com/v3/project/$project_id/disclosures")
+          echo "$result" | jq '{id,slug,title,description,categories,additional_categories,client_side,server_side,license,source_url,issues_url,status,requested_status,body_length:(.body|length)}'
+          echo "$disclosures" | jq '{disclosures}'
