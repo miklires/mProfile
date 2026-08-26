@@ -24,8 +24,7 @@ jobs:
           api="https://api.modrinth.com/v2"
           auth="Authorization: $MODRINTH_TOKEN"
           agent="User-Agent: miklires/$PROJECT_NAME/1.0.0"
-          user_id=$(curl -fsS -H "$auth" -H "$agent" "$api/user" | jq -r '.id')
-          projects=$(curl -fsS -H "$auth" -H "$agent" "$api/user/$user_id/projects")
+          projects=$(curl -fsS -H "$auth" -H "$agent" "$api/user/miklires/projects")
           project_id=$(jq -r --arg name "$PROJECT_NAME" '.[] | select((.title|ascii_downcase)==($name|ascii_downcase)) | .id' <<<"$projects" | head -n1)
           if [ -z "$project_id" ]; then echo "Draft project not found: $PROJECT_NAME"; exit 1; fi
           versions=$(curl -fsS -H "$auth" -H "$agent" "$api/project/$project_id/version")
