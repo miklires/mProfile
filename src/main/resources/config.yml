@@ -1,22 +1,39 @@
 config-version: 1
 
 language:
+  # Available out of the box: en_US and ru_RU.
   default: en_US
 
 profile:
+  # The database schema stores at most 120 characters; larger values are clamped.
   default-visibility: PUBLIC
   maximum-biography-length: 120
   default-theme: BLUE
+  # Theme names are case-insensitive and shown in command suggestions.
   themes: [BLUE, GREEN, RED, PURPLE, GOLD]
 
 gui:
-  title: "<dark_gray>Profile: <white>{player}"
+  # Leave empty to use the translated gui-title value from the language file.
+  title: ""
   size: 54
+  # Slots are numbered from 1 to gui.size. Invalid or duplicate slots are skipped safely.
+  slots:
+    identity: 14
+    biography: 21
+    statistics: 23
+    integrations: 25
+    activity: 41
+  materials:
+    biography: WRITABLE_BOOK
+    statistics: DIAMOND_SWORD
+    integrations: NAME_TAG
+    activity: CLOCK
 
 metrics:
-  enabled: true
+  # Disabled until a public bStats project ID is assigned.
+  enabled: false
   bstats-id: 0
 
 updates:
   enabled: true
-  modrinth-project-id: ""
+  modrinth-project-id: "VIEc33gz"

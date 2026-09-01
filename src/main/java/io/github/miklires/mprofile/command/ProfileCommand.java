@@ -49,7 +49,7 @@ public final class ProfileCommand implements BasicCommand {
     private void biography(Player player, String[] args) {
         if (!player.hasPermission("mprofile.edit")) { messages.send(player, "no-permission"); return; }
         String biography = args.length < 2 ? "" : String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
-        int limit = Math.max(0, plugin.getConfig().getInt("profile.maximum-biography-length", 120));
+        int limit = Math.clamp(plugin.getConfig().getInt("profile.maximum-biography-length", 120), 0, 120);
         if (biography.length() > limit) { messages.send(player, "bio-too-long", Map.of("limit", Integer.toString(limit))); return; }
         save(player, data -> data.preferences(biography, data.visibility(), data.theme()), "bio-updated");
     }

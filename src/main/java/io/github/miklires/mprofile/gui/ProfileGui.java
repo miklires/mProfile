@@ -20,12 +20,15 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -80,32 +83,42 @@ public final class ProfileGui implements Listener {
     private void openInventory(Player viewer, ProfileData profile, boolean bypass) {
         int configuredSize = plugin.getConfig().getInt("gui.size", 54);
         int size = Math.max(9, Math.min(54, ((configuredSize + 8) / 9) * 9));
-        String title = plugin.getConfig().getString("gui.title", "<dark_gray>Profile: <white>{player}")
-                .replace("{player}", profile.lastName().replace("<", "\\<"));
+        String configuredTitle = plugin.getConfig().getString("gui.title", "");
+        Component title = configuredTitle == null || configuredTitle.isBlank()
+                || configuredTitle.equals("<dark_gray>Profile: <white>{player}")
+                ? messages.component("gui-title", "<dark_gray>Profile: <white>{player}",
+                        Map.of("player", profile.lastName()))
+                : miniMessage.deserialize(configuredTitle.replace("{player}", miniMessage.escapeTags(profile.lastName())));
         ProfileHolder holder = new ProfileHolder(profile.playerId());
-        Inventory inventory = Bukkit.createInventory(holder, size, miniMessage.deserialize(title));
+        Inventory inventory = Bukkit.createInventory(holder, size, title);
         holder.inventory(inventory);
 
         boolean detailed = VisibilityPolicy.canViewStatistics(profile.visibility(), profile.playerId(),
                 viewer.getUniqueId(), bypass);
         IntegrationSummary summary = integrations.read(profile.playerId());
-        inventory.setItem(13, item(Material.PLAYER_HEAD, Component.text(profile.lastName(), NamedTextColor.AQUA), List.of(
+        Set<Integer> occupied = new HashSet<>();
+        place(inventory, occupied, "identity", 14, head(profile, Component.text(profile.lastName(), NamedTextColor.AQUA), List.of(
                 status(profile),
-                Component.text("Visibility: " + profile.visibility(), NamedTextColor.GRAY),
-                Component.text("Theme: " + profile.theme(), NamedTextColor.GRAY)
+                messages.component("gui-identity-visibility", "<gray>Visibility: <white>{visibility}",
+                        Map.of("visibility", profile.visibility().name())),
+                messages.component("gui-identity-theme", "<gray>Theme: <white>{theme}",
+                        Map.of("theme", profile.theme()))
         )));
-        inventory.setItem(20, item(Material.WRITABLE_BOOK, Component.text("Biography", NamedTextColor.YELLOW),
+        place(inventory, occupied, "biography", 21, item(material("biography", Material.WRITABLE_BOOK),
+                messages.component("gui-biography-name", "<yellow>Biography"),
                 List.of(Component.text(profile.biography().isBlank()
                         ? messages.raw("gui-biography-empty", "No biography set") : profile.biography(), NamedTextColor.GRAY))));
-        inventory.setItem(22, statistics(profile, detailed));
-        inventory.setItem(24, item(Material.NAME_TAG, Component.text("mPlugins", NamedTextColor.LIGHT_PURPLE), List.of(
-                Component.text("Reputation: " + summary.reputation(), NamedTextColor.GRAY),
-                Component.text("Badges: " + summary.badges(), NamedTextColor.GRAY),
-                Component.text("Color: " + summary.color(), NamedTextColor.GRAY)
+        place(inventory, occupied, "statistics", 23, statistics(profile, detailed));
+        place(inventory, occupied, "integrations", 25,
+                item(material("integrations", Material.NAME_TAG), messages.component("gui-integrations-name", "<light_purple>mPlugins"), List.of(
+                messages.component("gui-integrations-reputation", "<gray>Reputation: <white>{reputation}", Map.of("reputation", summary.reputation())),
+                messages.component("gui-integrations-badges", "<gray>Badges: <white>{badges}", Map.of("badges", summary.badges())),
+                messages.component("gui-integrations-color", "<gray>Color: <white>{color}", Map.of("color", summary.color()))
         )));
-        inventory.setItem(40, item(Material.CLOCK, Component.text("Activity", NamedTextColor.GREEN), List.of(
-                Component.text("First seen: " + profile.firstSeen(), NamedTextColor.GRAY),
-                Component.text("Last seen: " + profile.lastSeen(), NamedTextColor.GRAY)
+        place(inventory, occupied, "activity", 41,
+                item(material("activity", Material.CLOCK), messages.component("gui-activity-name", "<green>Activity"), List.of(
+                messages.component("gui-activity-first", "<gray>First seen: <white>{time}", Map.of("time", localizedAge(profile.firstSeen()))),
+                messages.component("gui-activity-last", "<gray>Last seen: <white>{time}", Map.of("time", localizedAge(profile.lastSeen())))
         )));
         viewer.openInventory(inventory);
     }
@@ -114,20 +127,24 @@ public final class ProfileGui implements Listener {
         List<Component> lore = new ArrayList<>();
         if (detailed) {
             Duration played = Duration.ofSeconds(profile.playtimeTicks() / 20);
-            lore.add(Component.text("Playtime: " + played.toHours() + "h", NamedTextColor.GRAY));
-            lore.add(Component.text("Player kills: " + profile.playerKills(), NamedTextColor.GRAY));
-            lore.add(Component.text("Deaths: " + profile.deaths(), NamedTextColor.GRAY));
+            lore.add(messages.component("gui-statistics-playtime", "<gray>Playtime: <white>{hours}h",
+                    Map.of("hours", Long.toString(played.toHours()))));
+            lore.add(messages.component("gui-statistics-kills", "<gray>Player kills: <white>{kills}",
+                    Map.of("kills", Integer.toString(profile.playerKills()))));
+            lore.add(messages.component("gui-statistics-deaths", "<gray>Deaths: <white>{deaths}",
+                    Map.of("deaths", Integer.toString(profile.deaths()))));
         } else {
             lore.add(miniMessage.deserialize(messages.raw("gui-limited", "<yellow>Detailed statistics are hidden.")));
         }
-        return item(Material.DIAMOND_SWORD, Component.text("Statistics", NamedTextColor.RED), lore);
+        return item(material("statistics", Material.DIAMOND_SWORD),
+                messages.component("gui-statistics-name", "<red>Statistics"), lore);
     }
 
     private Component status(ProfileData profile) {
         if (Bukkit.getPlayer(profile.playerId()) != null) {
             return miniMessage.deserialize(messages.raw("gui-status-online", "<green>Online"));
         }
-        String ago = compactAge(profile.lastSeen());
+        String ago = localizedAge(profile.lastSeen());
         return miniMessage.deserialize(messages.raw("gui-status-offline", "<gray>Last seen {time}")
                 .replace("{time}", ago));
     }
@@ -138,6 +155,38 @@ public final class ProfileGui implements Listener {
         if (seconds < 3600) return seconds / 60 + "m ago";
         if (seconds < 86400) return seconds / 3600 + "h ago";
         return seconds / 86400 + "d ago";
+    }
+
+    private String localizedAge(Instant instant) {
+        long seconds = Math.max(0, Duration.between(instant, Instant.now()).getSeconds());
+        if (seconds < 5) return messages.raw("time-now", "now");
+        String key;
+        long value;
+        if (seconds < 60) { key = "time-seconds-ago"; value = seconds; }
+        else if (seconds < 3600) { key = "time-minutes-ago"; value = seconds / 60; }
+        else if (seconds < 86400) { key = "time-hours-ago"; value = seconds / 3600; }
+        else { key = "time-days-ago"; value = seconds / 86400; }
+        return messages.raw(key, "{value}").replace("{value}", Long.toString(value));
+    }
+
+    private void place(Inventory inventory, Set<Integer> occupied, String key, int fallback, ItemStack item) {
+        int slot = plugin.getConfig().getInt("gui.slots." + key, fallback) - 1;
+        if (slot >= 0 && slot < inventory.getSize() && occupied.add(slot)) inventory.setItem(slot, item);
+    }
+
+    private Material material(String key, Material fallback) {
+        String configured = plugin.getConfig().getString("gui.materials." + key, fallback.name());
+        Material found = configured == null ? null : Material.matchMaterial(configured);
+        return found == null || !found.isItem() ? fallback : found;
+    }
+
+    private ItemStack head(ProfileData profile, Component name, List<Component> lore) {
+        ItemStack item = item(Material.PLAYER_HEAD, name, lore);
+        if (item.getItemMeta() instanceof SkullMeta skull) {
+            skull.setOwningPlayer(Bukkit.getOfflinePlayer(profile.playerId()));
+            item.setItemMeta(skull);
+        }
+        return item;
     }
 
     private ItemStack item(Material material, Component name, List<Component> lore) {
