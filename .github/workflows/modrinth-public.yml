@@ -16,8 +16,8 @@ jobs:
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           PROJECT_NAME: mProfile
-          VERSION_NUMBER: 1.0.0
-          JAR_PATH: build/libs/mProfile-1.0.0.jar
+          VERSION_NUMBER: 1.1.0
+          JAR_PATH: build/libs/mProfile-1.1.0.jar
           SOURCE_URL: https://github.com/miklires/mProfile
           SUMMARY: Player profiles, statistics, privacy controls, and ecosystem integrations for Paper, Purpur, and Folia.
           CATEGORIES: '["social","management"]'
@@ -26,7 +26,7 @@ jobs:
           set -euo pipefail
           api="https://api.modrinth.com/v2"
           auth="Authorization: $MODRINTH_TOKEN"
-          agent="User-Agent: miklires/$PROJECT_NAME/1.0.0"
+          agent="User-Agent: miklires/$PROJECT_NAME/1.1.0"
           projects=$(curl -fsS -H "$auth" -H "$agent" "$api/user/miklires/projects")
           project_id=$(jq -r --arg name "$PROJECT_NAME" '.[] | select((.title|ascii_downcase)==($name|ascii_downcase)) | .id' <<<"$projects" | head -n1)
           if [ -z "$project_id" ]; then echo "Draft project not found: $PROJECT_NAME"; exit 1; fi

@@ -16,4 +16,4 @@ jobs:
       - run: ./gradlew modrinth --no-daemon
         env: { MODRINTH_TOKEN: "${{ secrets.MODRINTH_TOKEN }}", MODRINTH_PROJECT_ID: "${{ secrets.MODRINTH_PROJECT_ID }}" }
       - uses: softprops/action-gh-release@v3
-        with: { files: "build/libs/mProfile-1.0.0.jar" }
+        with: { files: "build/libs/mProfile-1.1.0.jar" }
