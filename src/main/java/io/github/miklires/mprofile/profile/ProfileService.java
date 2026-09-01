@@ -59,7 +59,7 @@ public final class ProfileService {
         ProfileVisibility defaultVisibility = configuredVisibility();
         ProfileData data = new ProfileData(player.getUniqueId(), player.getName(),
                 previous == null ? "" : previous.biography(), previous == null ? defaultVisibility : previous.visibility(),
-                previous == null ? plugin.getConfig().getString("profile.default-theme", "BLUE") : previous.theme(),
+                previous == null ? configuredTheme() : previous.theme(),
                 previous == null ? firstSeen : previous.firstSeen(), now, player.getStatistic(Statistic.PLAY_ONE_MINUTE),
                 player.getStatistic(Statistic.PLAYER_KILLS), player.getStatistic(Statistic.DEATHS));
         cache.put(data.playerId(), data);
@@ -94,5 +94,12 @@ public final class ProfileService {
         } catch (IllegalArgumentException exception) {
             return ProfileVisibility.PUBLIC;
         }
+    }
+
+    private String configuredTheme() {
+        String theme = plugin.getConfig().getString("profile.default-theme", "BLUE");
+        if (theme == null) return "BLUE";
+        theme = theme.toUpperCase(Locale.ROOT);
+        return theme.matches("[A-Z0-9_-]{1,32}") ? theme : "BLUE";
     }
 }

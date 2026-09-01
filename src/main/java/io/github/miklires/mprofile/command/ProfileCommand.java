@@ -5,6 +5,7 @@ import io.github.miklires.mprofile.api.ProfileVisibility;
 import io.github.miklires.mprofile.gui.ProfileGui;
 import io.github.miklires.mprofile.message.MessageService;
 import io.github.miklires.mprofile.profile.ProfileService;
+import io.github.miklires.mprofile.profile.ProfileText;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Bukkit;
@@ -48,9 +49,10 @@ public final class ProfileCommand implements BasicCommand {
 
     private void biography(Player player, String[] args) {
         if (!player.hasPermission("mprofile.edit")) { messages.send(player, "no-permission"); return; }
-        String biography = args.length < 2 ? "" : String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
         int limit = Math.clamp(plugin.getConfig().getInt("profile.maximum-biography-length", 120), 0, 120);
-        if (biography.length() > limit) { messages.send(player, "bio-too-long", Map.of("limit", Integer.toString(limit))); return; }
+        String input = args.length < 2 ? "" : String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+        if (input.length() > limit) { messages.send(player, "bio-too-long", Map.of("limit", Integer.toString(limit))); return; }
+        String biography = ProfileText.biography(input, limit);
         save(player, data -> data.preferences(biography, data.visibility(), data.theme()), "bio-updated");
     }
 
@@ -66,8 +68,7 @@ public final class ProfileCommand implements BasicCommand {
 
     private void theme(Player player, String[] args) {
         if (!player.hasPermission("mprofile.edit")) { messages.send(player, "no-permission"); return; }
-        List<String> themes = plugin.getConfig().getStringList("profile.themes").stream()
-                .map(value -> value.toUpperCase(Locale.ROOT)).toList();
+        List<String> themes = configuredThemes();
         String theme = args.length < 2 ? "" : args[1].toUpperCase(Locale.ROOT);
         if (!themes.contains(theme)) { messages.send(player, "invalid-theme", Map.of("themes", String.join(", ", themes))); return; }
         save(player, data -> data.preferences(data.biography(), data.visibility(), theme), "theme-updated",
@@ -110,12 +111,20 @@ public final class ProfileCommand implements BasicCommand {
         if (args.length == 2 && args[0].equalsIgnoreCase("visibility"))
             return filter(List.of("PUBLIC", "LIMITED", "PRIVATE"), args[1]);
         if (args.length == 2 && args[0].equalsIgnoreCase("theme"))
-            return filter(plugin.getConfig().getStringList("profile.themes"), args[1]);
+            return filter(configuredThemes(), args[1]);
         return List.of();
     }
 
     private Collection<String> filter(Collection<String> values, String input) {
         String prefix = input.toLowerCase(Locale.ROOT);
         return values.stream().filter(value -> value.toLowerCase(Locale.ROOT).startsWith(prefix)).distinct().toList();
+    }
+
+    private List<String> configuredThemes() {
+        List<String> themes = plugin.getConfig().getStringList("profile.themes").stream()
+                .map(value -> value.toUpperCase(Locale.ROOT))
+                .filter(value -> value.matches("[A-Z0-9_-]{1,32}"))
+                .distinct().toList();
+        return themes.isEmpty() ? List.of("BLUE", "GREEN", "RED", "PURPLE", "GOLD") : themes;
     }
 }

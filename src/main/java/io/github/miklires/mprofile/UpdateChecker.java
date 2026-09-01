@@ -19,7 +19,7 @@ public final class UpdateChecker {
     public void start() {
         if (!plugin.getConfig().getBoolean("updates.enabled", true)) return;
         String project = plugin.getConfig().getString("updates.modrinth-project-id", "").trim();
-        if (project.isEmpty()) return;
+        if (!project.matches("[A-Za-z0-9]{3,64}")) return;
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.modrinth.com/v2/project/" + project + "/version"))
                 .timeout(Duration.ofSeconds(8)).header("User-Agent", "miklires/mProfile").build();

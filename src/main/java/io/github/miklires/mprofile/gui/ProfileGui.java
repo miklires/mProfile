@@ -52,10 +52,15 @@ public final class ProfileGui implements Listener {
 
     public CompletableFuture<Boolean> open(Player viewer, UUID playerId) {
         CompletableFuture<Boolean> result = new CompletableFuture<>();
+        if (!plugin.scheduler().player(viewer, () -> beginOpen(viewer, playerId, result))) result.complete(false);
+        return result;
+    }
+
+    private void beginOpen(Player viewer, UUID playerId, CompletableFuture<Boolean> result) {
         if (!reserveOpen(viewer)) {
             messages.send(viewer, "cooldown");
             result.complete(false);
-            return result;
+            return;
         }
         Player online = Bukkit.getPlayer(playerId);
         if (online != null) {
@@ -65,7 +70,6 @@ public final class ProfileGui implements Listener {
         } else {
             profiles.find(playerId).whenComplete((profile, error) -> finishOpen(viewer, profile, error, result));
         }
-        return result;
     }
 
     private void finishOpen(Player viewer, java.util.Optional<ProfileData> profile, Throwable error,
@@ -230,6 +234,7 @@ public final class ProfileGui implements Listener {
             String command = plugin.getConfig().getString(path + ".command", "");
             if (command == null || command.isBlank() || command.length() > 128) continue;
             command = command.stripLeading().replace("{player}", profile.lastName());
+            if (command.chars().anyMatch(Character::isISOControl)) continue;
             while (command.startsWith("/")) command = command.substring(1);
             boolean suggest = plugin.getConfig().getString(path + ".mode", "SUGGEST").equalsIgnoreCase("SUGGEST");
             int fallback = switch (key) { case "message" -> 47; case "report" -> 49; default -> 51; };
