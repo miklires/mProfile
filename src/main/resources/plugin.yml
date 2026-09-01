@@ -5,16 +5,18 @@ api-version: '26.2'
 author: miklires
 description: Player profiles and interaction hub for modern Paper servers
 folia-supported: true
-softdepend: [mBadges, mReputation, mColor, PlaceholderAPI]
+softdepend: [mBadges, mReputation, mColor, mChat, mReports, PlaceholderAPI]
 libraries:
   - com.h2database:h2:2.3.232
 permissions:
   mprofile.use: { default: true }
   mprofile.edit: { default: true }
+  mprofile.cooldown.bypass: { default: op }
   mprofile.view.private: { default: op }
   mprofile.admin:
     default: op
     children:
       mprofile.view.private: true
       mprofile.reload: true
+      mprofile.cooldown.bypass: true
   mprofile.reload: { default: op }

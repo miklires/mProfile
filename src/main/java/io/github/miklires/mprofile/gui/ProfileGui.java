@@ -9,6 +9,7 @@ import io.github.miklires.mprofile.profile.ProfileService;
 import io.github.miklires.mprofile.profile.VisibilityPolicy;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -17,6 +18,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -31,6 +33,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class ProfileGui implements Listener {
     private final MProfilePlugin plugin;
@@ -38,6 +41,7 @@ public final class ProfileGui implements Listener {
     private final MessageService messages;
     private final IntegrationService integrations;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
+    private final Map<UUID, Long> lastOpen = new ConcurrentHashMap<>();
 
     public ProfileGui(MProfilePlugin plugin, ProfileService profiles, MessageService messages) {
         this.plugin = plugin;
@@ -48,6 +52,11 @@ public final class ProfileGui implements Listener {
 
     public CompletableFuture<Boolean> open(Player viewer, UUID playerId) {
         CompletableFuture<Boolean> result = new CompletableFuture<>();
+        if (!reserveOpen(viewer)) {
+            messages.send(viewer, "cooldown");
+            result.complete(false);
+            return result;
+        }
         Player online = Bukkit.getPlayer(playerId);
         if (online != null) {
             plugin.scheduler().player(online, () -> profiles.capture(online)
@@ -97,7 +106,9 @@ public final class ProfileGui implements Listener {
                 viewer.getUniqueId(), bypass);
         IntegrationSummary summary = integrations.read(profile.playerId());
         Set<Integer> occupied = new HashSet<>();
-        place(inventory, occupied, "identity", 14, head(profile, Component.text(profile.lastName(), NamedTextColor.AQUA), List.of(
+        String accent = themeColor(profile.theme());
+        place(inventory, occupied, "identity", 14, head(profile,
+                miniMessage.deserialize(accent + miniMessage.escapeTags(profile.lastName())), List.of(
                 status(profile),
                 messages.component("gui-identity-visibility", "<gray>Visibility: <white>{visibility}",
                         Map.of("visibility", profile.visibility().name())),
@@ -120,6 +131,7 @@ public final class ProfileGui implements Listener {
                 messages.component("gui-activity-first", "<gray>First seen: <white>{time}", Map.of("time", localizedAge(profile.firstSeen()))),
                 messages.component("gui-activity-last", "<gray>Last seen: <white>{time}", Map.of("time", localizedAge(profile.lastSeen())))
         )));
+        addActions(inventory, holder, occupied, profile, viewer);
         viewer.openInventory(inventory);
     }
 
@@ -169,9 +181,11 @@ public final class ProfileGui implements Listener {
         return messages.raw(key, "{value}").replace("{value}", Long.toString(value));
     }
 
-    private void place(Inventory inventory, Set<Integer> occupied, String key, int fallback, ItemStack item) {
+    private boolean place(Inventory inventory, Set<Integer> occupied, String key, int fallback, ItemStack item) {
         int slot = plugin.getConfig().getInt("gui.slots." + key, fallback) - 1;
-        if (slot >= 0 && slot < inventory.getSize() && occupied.add(slot)) inventory.setItem(slot, item);
+        if (slot < 0 || slot >= inventory.getSize() || !occupied.add(slot)) return false;
+        inventory.setItem(slot, item);
+        return true;
     }
 
     private Material material(String key, Material fallback) {
@@ -189,6 +203,54 @@ public final class ProfileGui implements Listener {
         return item;
     }
 
+    private String themeColor(String theme) {
+        String color = plugin.getConfig().getString("profile.theme-colors." + theme.toUpperCase(java.util.Locale.ROOT), "<aqua>");
+        return color == null || color.length() > 32 ? "<aqua>" : color;
+    }
+
+    private boolean reserveOpen(Player viewer) {
+        if (viewer.hasPermission("mprofile.cooldown.bypass")) return true;
+        long cooldown = Math.clamp(plugin.getConfig().getLong("access.view-cooldown-millis", 750), 0, 60_000);
+        if (cooldown == 0) return true;
+        long now = System.nanoTime();
+        Long previous = lastOpen.put(viewer.getUniqueId(), now);
+        if (previous == null || now - previous >= cooldown * 1_000_000L) return true;
+        lastOpen.put(viewer.getUniqueId(), previous);
+        return false;
+    }
+
+    private void addActions(Inventory inventory, ProfileHolder holder, Set<Integer> occupied,
+                            ProfileData profile, Player viewer) {
+        if (profile.playerId().equals(viewer.getUniqueId()) || !plugin.getConfig().getBoolean("interactions.enabled", true)) return;
+        for (String key : List.of("message", "report", "ignore")) {
+            String path = "interactions.actions." + key;
+            if (!plugin.getConfig().getBoolean(path + ".enabled", false)) continue;
+            String required = plugin.getConfig().getString(path + ".required-plugin", "");
+            if (required != null && !required.isBlank() && !plugin.getServer().getPluginManager().isPluginEnabled(required)) continue;
+            String command = plugin.getConfig().getString(path + ".command", "");
+            if (command == null || command.isBlank() || command.length() > 128) continue;
+            command = command.stripLeading().replace("{player}", profile.lastName());
+            while (command.startsWith("/")) command = command.substring(1);
+            boolean suggest = plugin.getConfig().getString(path + ".mode", "SUGGEST").equalsIgnoreCase("SUGGEST");
+            int fallback = switch (key) { case "message" -> 47; case "report" -> 49; default -> 51; };
+            Material fallbackMaterial = switch (key) { case "message" -> Material.PAPER; case "report" -> Material.REDSTONE_TORCH; default -> Material.BARRIER; };
+            String nameKey = "gui-action-" + key;
+            ItemStack button = item(actionMaterial(path, fallbackMaterial), messages.component(nameKey, "<yellow>" + key),
+                    List.of(messages.component("gui-action-hint", "<gray>Click to use")));
+            int slot = plugin.getConfig().getInt(path + ".slot", fallback) - 1;
+            if (slot >= 0 && slot < inventory.getSize() && occupied.add(slot)) {
+                inventory.setItem(slot, button);
+                holder.action(slot, new ProfileAction(command, suggest));
+            }
+        }
+    }
+
+    private Material actionMaterial(String path, Material fallback) {
+        String configured = plugin.getConfig().getString(path + ".material", fallback.name());
+        Material found = configured == null ? null : Material.matchMaterial(configured);
+        return found == null || !found.isItem() ? fallback : found;
+    }
+
     private ItemStack item(Material material, Component name, List<Component> lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
@@ -199,10 +261,31 @@ public final class ProfileGui implements Listener {
     }
 
     @EventHandler public void onClick(InventoryClickEvent event) {
-        if (event.getView().getTopInventory().getHolder(false) instanceof ProfileHolder) event.setCancelled(true);
+        if (!(event.getView().getTopInventory().getHolder(false) instanceof ProfileHolder holder)) return;
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || event.getClickedInventory() != event.getView().getTopInventory()) return;
+        ProfileAction action = holder.action(event.getRawSlot());
+        if (action == null) return;
+        player.closeInventory();
+        if (action.suggest()) {
+            player.sendMessage(messages.component("interaction-prompt", "<yellow>Click here to prepare the command.")
+                    .clickEvent(ClickEvent.suggestCommand("/" + action.command())));
+        } else {
+            player.performCommand(action.command());
+        }
     }
 
     @EventHandler public void onDrag(InventoryDragEvent event) {
         if (event.getView().getTopInventory().getHolder(false) instanceof ProfileHolder) event.setCancelled(true);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPlayerInteract(PlayerInteractEntityEvent event) {
+        if (!(event.getRightClicked() instanceof Player target)) return;
+        if (!plugin.getConfig().getBoolean("access.right-click.enabled", true)) return;
+        if (plugin.getConfig().getBoolean("access.right-click.require-sneaking", true) && !event.getPlayer().isSneaking()) return;
+        if (!event.getPlayer().hasPermission("mprofile.use")) return;
+        if (plugin.getConfig().getBoolean("access.right-click.cancel-interaction", false)) event.setCancelled(true);
+        open(event.getPlayer(), target.getUniqueId());
     }
 }

@@ -11,6 +11,19 @@ profile:
   default-theme: BLUE
   # Theme names are case-insensitive and shown in command suggestions.
   themes: [BLUE, GREEN, RED, PURPLE, GOLD]
+  theme-colors:
+    BLUE: "<aqua>"
+    GREEN: "<green>"
+    RED: "<red>"
+    PURPLE: "<light_purple>"
+    GOLD: "<gold>"
+
+access:
+  view-cooldown-millis: 750
+  right-click:
+    enabled: true
+    require-sneaking: true
+    cancel-interaction: false
 
 gui:
   # Leave empty to use the translated gui-title value from the language file.
@@ -28,6 +41,32 @@ gui:
     statistics: DIAMOND_SWORD
     integrations: NAME_TAG
     activity: CLOCK
+
+interactions:
+  enabled: true
+  # SUGGEST prepares a command for confirmation; RUN executes it immediately.
+  actions:
+    message:
+      enabled: true
+      slot: 47
+      material: PAPER
+      mode: SUGGEST
+      command: "msg {player} "
+      required-plugin: ""
+    report:
+      enabled: true
+      slot: 49
+      material: REDSTONE_TORCH
+      mode: SUGGEST
+      command: "report {player} "
+      required-plugin: mReports
+    ignore:
+      enabled: true
+      slot: 51
+      material: BARRIER
+      mode: SUGGEST
+      command: "ignore {player}"
+      required-plugin: mChat
 
 metrics:
   # Disabled until a public bStats project ID is assigned.
