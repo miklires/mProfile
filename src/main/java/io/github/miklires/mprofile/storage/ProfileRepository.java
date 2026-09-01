@@ -16,6 +16,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public final class ProfileRepository implements AutoCloseable {
     private final String jdbcUrl;
@@ -64,7 +65,8 @@ public final class ProfileRepository implements AutoCloseable {
     }
 
     public CompletableFuture<Optional<ProfileData>> findByName(String name) {
-        return CompletableFuture.supplyAsync(() -> query("SELECT * FROM profiles WHERE LOWER(last_name) = LOWER(?)", name), executor);
+        return CompletableFuture.supplyAsync(() -> query(
+                "SELECT * FROM profiles WHERE LOWER(last_name) = LOWER(?) ORDER BY last_seen DESC LIMIT 1", name), executor);
     }
 
     public CompletableFuture<Void> save(ProfileData profile) {
@@ -102,8 +104,14 @@ public final class ProfileRepository implements AutoCloseable {
     }
 
     private ProfileData read(ResultSet result) throws SQLException {
+        ProfileVisibility visibility;
+        try {
+            visibility = ProfileVisibility.valueOf(result.getString("visibility"));
+        } catch (IllegalArgumentException exception) {
+            visibility = ProfileVisibility.PRIVATE;
+        }
         return new ProfileData(result.getObject("player_id", UUID.class), result.getString("last_name"),
-                result.getString("biography"), ProfileVisibility.valueOf(result.getString("visibility")),
+                result.getString("biography"), visibility,
                 result.getString("theme"), Instant.ofEpochMilli(result.getLong("first_seen")),
                 Instant.ofEpochMilli(result.getLong("last_seen")), result.getLong("playtime_ticks"),
                 result.getInt("player_kills"), result.getInt("deaths"));
@@ -111,5 +119,13 @@ public final class ProfileRepository implements AutoCloseable {
 
     private Connection connection() throws SQLException { return DriverManager.getConnection(jdbcUrl); }
 
-    @Override public void close() { executor.close(); }
+    @Override public void close() {
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) executor.shutdownNow();
+        } catch (InterruptedException exception) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
 }

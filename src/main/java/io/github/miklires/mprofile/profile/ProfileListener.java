@@ -18,13 +18,23 @@ public final class ProfileListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
-        profiles.find(event.getPlayer().getUniqueId()).whenComplete((ignored, error) ->
-                plugin.scheduler().player(event.getPlayer(), () -> profiles.capture(event.getPlayer())));
+        profiles.find(event.getPlayer().getUniqueId()).whenComplete((ignored, error) -> {
+            if (error != null) {
+                plugin.getLogger().warning("Could not load profile " + event.getPlayer().getUniqueId() + ": " + error.getMessage());
+                return;
+            }
+            plugin.scheduler().player(event.getPlayer(), () -> {
+                if (event.getPlayer().isOnline()) profiles.capture(event.getPlayer());
+            });
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
-        profiles.capture(event.getPlayer()).whenComplete((ignored, error) ->
-                profiles.removeFromCache(event.getPlayer().getUniqueId()));
+        profiles.capture(event.getPlayer()).whenComplete((ignored, error) -> {
+            if (error != null)
+                plugin.getLogger().warning("Could not save quitting profile " + event.getPlayer().getUniqueId());
+            profiles.removeFromCache(event.getPlayer().getUniqueId());
+        });
     }
 }

@@ -50,7 +50,12 @@ public final class MProfilePlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ProfileListener(this, profiles), this);
         getServer().getServicesManager().register(MProfileApi.class, new ProfileApiService(profiles, gui),
                 this, ServicePriority.Normal);
-        getServer().getOnlinePlayers().forEach(player -> scheduler.player(player, () -> profiles.capture(player)));
+        getServer().getOnlinePlayers().forEach(player -> profiles.find(player.getUniqueId()).whenComplete((ignored, loadError) -> {
+            if (loadError == null) scheduler.player(player, () -> {
+                if (player.isOnline()) profiles.capture(player);
+            });
+            else getLogger().warning("Could not load profile " + player.getUniqueId() + ": " + loadError.getMessage());
+        }));
         new UpdateChecker(this).start();
         ready = true;
         getLogger().info("mProfile is ready");

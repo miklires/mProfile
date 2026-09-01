@@ -27,4 +27,17 @@ class ProfileRepositoryTest {
             assertEquals(profile, loaded.get());
         }
     }
+
+    @Test void duplicateNamesResolveToMostRecentlySeenProfile() {
+        try (ProfileRepository repository = new ProfileRepository(directory)) {
+            repository.initialize().join();
+            ProfileData old = new ProfileData(UUID.randomUUID(), "Player", "old", ProfileVisibility.PUBLIC,
+                    "BLUE", Instant.EPOCH, Instant.ofEpochSecond(10), 0, 0, 0);
+            ProfileData current = new ProfileData(UUID.randomUUID(), "Player", "new", ProfileVisibility.PUBLIC,
+                    "BLUE", Instant.EPOCH, Instant.ofEpochSecond(20), 0, 0, 0);
+            repository.save(old).join();
+            repository.save(current).join();
+            assertEquals(current.playerId(), repository.findByName("player").join().orElseThrow().playerId());
+        }
+    }
 }

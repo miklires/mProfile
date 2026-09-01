@@ -15,8 +15,10 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 
 public final class ProfileService {
+    private static final Pattern PLAYER_NAME = Pattern.compile("[A-Za-z0-9_]{1,16}");
     private final MProfilePlugin plugin;
     private final ProfileRepository repository;
     private final Map<UUID, ProfileData> cache = new ConcurrentHashMap<>();
@@ -34,18 +36,19 @@ public final class ProfileService {
         ProfileData cached = cache.get(playerId);
         if (cached != null) return CompletableFuture.completedFuture(Optional.of(cached));
         return repository.find(playerId).thenApply(found -> {
-            found.ifPresent(value -> cache.put(playerId, value));
-            return found;
+            found.ifPresent(value -> cache.putIfAbsent(playerId, value));
+            return Optional.ofNullable(cache.get(playerId));
         });
     }
 
     public CompletableFuture<Optional<ProfileData>> findByName(String name) {
+        if (name == null || !PLAYER_NAME.matcher(name).matches()) return CompletableFuture.completedFuture(Optional.empty());
         Optional<ProfileData> cached = cache.values().stream()
                 .filter(value -> value.lastName().equalsIgnoreCase(name)).findFirst();
         if (cached.isPresent()) return CompletableFuture.completedFuture(cached);
         return repository.findByName(name).thenApply(found -> {
-            found.ifPresent(value -> cache.put(value.playerId(), value));
-            return found;
+            found.ifPresent(value -> cache.putIfAbsent(value.playerId(), value));
+            return found.map(value -> cache.getOrDefault(value.playerId(), value));
         });
     }
 
@@ -60,7 +63,13 @@ public final class ProfileService {
                 previous == null ? firstSeen : previous.firstSeen(), now, player.getStatistic(Statistic.PLAY_ONE_MINUTE),
                 player.getStatistic(Statistic.PLAYER_KILLS), player.getStatistic(Statistic.DEATHS));
         cache.put(data.playerId(), data);
-        return repository.save(data);
+        return repository.save(data).whenComplete((ignored, error) -> {
+            if (error != null) {
+                if (previous == null) cache.remove(data.playerId(), data);
+                else cache.replace(data.playerId(), data, previous);
+                plugin.getLogger().warning("Could not capture profile " + data.playerId() + ": " + error.getMessage());
+            }
+        });
     }
 
     public CompletableFuture<Boolean> update(Player player, UnaryOperator<ProfileData> update) {
@@ -70,7 +79,7 @@ public final class ProfileService {
         cache.put(changed.playerId(), changed);
         return repository.save(changed).handle((ignored, error) -> {
             if (error == null) return true;
-            cache.put(current.playerId(), current);
+            cache.replace(current.playerId(), changed, current);
             plugin.getLogger().warning("Could not save profile " + current.playerId() + ": " + error.getMessage());
             return false;
         });
