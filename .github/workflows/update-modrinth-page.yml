@@ -1,0 +1,82 @@
+name: Update Modrinth page
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update and verify project page
+        shell: bash
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+          PROJECT_NAME: mProfile
+          SUMMARY: 'Private-by-design player profiles, statistics, privacy controls, and social integrations for Paper, Purpur, and Folia.'
+          CATEGORIES: '["social","management"]'
+          ADDITIONAL_CATEGORIES: '["utility"]'
+          WIKI_URL: ''
+        run: |
+          set -euo pipefail
+          api="https://api.modrinth.com/v2"
+          auth="Authorization: $MODRINTH_TOKEN"
+          agent="User-Agent: miklires/$PROJECT_NAME/page-metadata"
+          source_url="https://github.com/miklires/$PROJECT_NAME"
+
+          current="$(curl --fail-with-body --silent --header "$auth" --header "$agent" "$api/project/$MODRINTH_PROJECT_ID")"
+          echo "$current" | jq -e --arg expected "$PROJECT_NAME" '(.title | ascii_downcase) == ($expected | ascii_downcase)' >/dev/null
+
+          jq -n +            --rawfile body README.md +            --arg title "$PROJECT_NAME" +            --arg description "$SUMMARY" +            --arg source "$source_url" +            --arg issues "$source_url/issues" +            --arg license "$source_url/blob/main/LICENSE" +            --arg wiki "$WIKI_URL" +            --arg discord "https://discord.gg/pes25cnWKy" +            --arg support "https://miklires.su/support/" +            --argjson categories "$CATEGORIES" +            --argjson additional "$ADDITIONAL_CATEGORIES" +            '{
+              title: $title,
+              description: $description,
+              body: $body,
+              categories: $categories,
+              additional_categories: $additional,
+              source_url: $source,
+              issues_url: $issues,
+              license_id: "MIT",
+              license_url: $license,
+              wiki_url: (if $wiki == "" then null else $wiki end),
+              discord_url: $discord,
+              donation_urls: [{id: "other", platform: "Other", url: $support}],
+              client_side: "unsupported",
+              server_side: "required",
+              requested_status: "approved"
+            }' > modrinth-project.json
+
+          curl --fail-with-body --silent --show-error +            --request PATCH +            --header "$auth" +            --header "$agent" +            --header "Content-Type: application/json" +            --data-binary @modrinth-project.json +            "$api/project/$MODRINTH_PROJECT_ID"
+
+          result="$(curl --fail-with-body --silent --header "$auth" --header "$agent" "$api/project/$MODRINTH_PROJECT_ID")"
+          echo "$result" | jq -e +            --arg title "$PROJECT_NAME" +            --arg description "$SUMMARY" +            --arg source "$source_url" +            --arg issues "$source_url/issues" +            --arg wiki "$WIKI_URL" +            --argjson categories "$CATEGORIES" +            --argjson additional "$ADDITIONAL_CATEGORIES" +            'select(
+              .title == $title and
+              .description == $description and
+              .categories == $categories and
+              .additional_categories == $additional and
+              .source_url == $source and
+              .issues_url == $issues and
+              .discord_url == "https://discord.gg/pes25cnWKy" and
+              .license.id == "MIT" and
+              ((.body | length) > 200) and
+              (if $wiki == "" then .wiki_url == null else .wiki_url == $wiki end)
+            ) |
+            {
+              id,
+              slug,
+              title,
+              description,
+              status,
+              requested_status,
+              categories,
+              additional_categories,
+              source_url,
+              issues_url,
+              wiki_url,
+              discord_url,
+              donation_urls,
+              body_length: (.body | length)
+            }'
