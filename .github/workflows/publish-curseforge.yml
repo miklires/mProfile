@@ -74,23 +74,3 @@ jobs:
             > curseforge-upload.json
 
           jq -e 'select((.id | type) == "number" and .id > 0) | {id}' curseforge-upload.json
-          parent_id="$(jq -r '.id' curseforge-upload.json)"
-
-          for secondary in release-assets/*.jar; do
-            [ "$secondary" = "$primary" ] && continue
-            [[ "$secondary" == *-plain.jar ]] && continue
-            filename="$(basename "$secondary")"
-            jq -n --argjson parentFileID "$parent_id" --arg displayName "$filename" \
-              '{parentFileID:$parentFileID,displayName:$displayName,releaseType:"release"}' \
-              > curseforge-secondary-metadata.json
-            curl --fail-with-body --silent --show-error \
-              --request POST \
-              --header "$auth" \
-              --header "$agent" \
-              --form 'metadata=<curseforge-secondary-metadata.json' \
-              --form "file=@$secondary" \
-              "$api/projects/$CURSEFORGE_PROJECT_ID/upload-file" \
-              > curseforge-secondary-upload.json
-            jq -e --arg file "$filename" 'select((.id | type) == "number" and .id > 0) | {id,file:$file}' curseforge-secondary-upload.json
-          done
-
