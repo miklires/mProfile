@@ -19,13 +19,19 @@ jobs:
           SUMMARY: 'Private-by-design player profiles, statistics, privacy controls, and social integrations for Paper, Purpur, and Folia.'
           CATEGORIES: '["management","social"]'
           ADDITIONAL_CATEGORIES: '["utility"]'
+          PLATFORMS: 'paper,purpur,folia'
+          BSTATS_ID: ''
+          LICENSE_ID: 'MIT'
+          LICENSE_URL: 'https://github.com/miklires/mProfile/blob/main/LICENSE'
           WIKI_URL: ''
         run: |
           set -euo pipefail
           api="https://api.modrinth.com/v2"
+          api_v3="https://api.modrinth.com/v3"
           auth="Authorization: $MODRINTH_TOKEN"
           agent="User-Agent: miklires/$PROJECT_NAME/page-metadata"
-          source_url="https://github.com/miklires/$PROJECT_NAME"
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          source_url="https://github.com/$GITHUB_REPOSITORY"
 
           projects="$(curl --fail-with-body --silent --show-error --header "$auth" --header "$agent" "$api/user/miklires/projects")"
           project_id="$(echo "$projects" | jq -r --arg expected "$PROJECT_NAME" '.[] | select((.title | ascii_downcase) == ($expected | ascii_downcase)) | .id' | head -n1)"
@@ -35,10 +41,91 @@ jobs:
           fi
           current="$(curl --fail-with-body --silent --show-error --header "$auth" --header "$agent" "$api/project/$project_id")"
           echo "$current" | jq -e --arg expected "$PROJECT_NAME" '(.title | ascii_downcase) == ($expected | ascii_downcase)' >/dev/null
+          export PROJECT_SLUG="$(echo "$current" | jq -r '.slug')"
+          export REPO_NAME="$repo_name"
 
-          jq -n --rawfile body README.md --arg title "$PROJECT_NAME" --arg description "$SUMMARY" --arg source "$source_url" --arg issues "$source_url/issues" --arg license "$source_url/blob/main/LICENSE" --arg wiki "$WIKI_URL" --arg discord "https://discord.gg/pes25cnWKy" --arg support "https://miklires.su/support/" --argjson categories "$CATEGORIES" --argjson additional "$ADDITIONAL_CATEGORIES" '{title:$title,description:$description,body:$body,categories:$categories,additional_categories:$additional,source_url:$source,issues_url:$issues,license_id:"MIT",license_url:$license,wiki_url:(if $wiki == "" then null else $wiki end),discord_url:$discord,donation_urls:[{id:"other",platform:"Other",url:$support}],requested_status:"approved"}' > modrinth-project.json
+          python - <<'PY'
+          import html
+          import os
+          from pathlib import Path
+
+          text = Path("README.md").read_text(encoding="utf-8")
+          lowered = text.lower()
+          marker = '<div align="center">'
+          start = lowered.find(marker)
+          if start >= 0:
+              end = lowered.find("</div>", start)
+              content = text[end + len("</div>"):].lstrip() if end >= 0 else text
+          else:
+              lines = text.splitlines()
+              first_section = next((i for i, line in enumerate(lines) if line.startswith("## ")), None)
+              content = "\n".join(lines[first_section:]).lstrip() if first_section is not None else text
+
+          platforms = {
+              "paper": ("https://papermc.io/software/paper", "Paper", "https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/paper_vector.svg"),
+              "purpur": ("https://purpurmc.org", "Purpur", "https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/purpur_vector.svg"),
+              "folia": ("https://papermc.io/software/folia", "Folia", "https://raw.githubusercontent.com/miklires/mBadges/main/docs/assets/folia-available.png"),
+              "velocity": ("https://papermc.io/software/velocity", "Velocity", "https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/velocity_vector.svg"),
+              "fabric": ("https://fabricmc.net", "Fabric", "https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/fabric_vector.svg"),
+          }
+          platform_lines = []
+          for key in filter(None, os.environ["PLATFORMS"].split(",")):
+              url, label, badge = platforms[key]
+              platform_lines.append(f'    <a href="{url}"><img alt="{label}" height="56" src="{badge}"></a>')
+          metrics = ""
+          if os.environ["BSTATS_ID"]:
+              metrics = f'    <a href="https://bstats.org/plugin/bukkit/{html.escape(os.environ["PROJECT_NAME"])}/{os.environ["BSTATS_ID"]}"><img alt="bStats" src="https://img.shields.io/badge/bStats-{os.environ["BSTATS_ID"]}-2F9BE6?style=for-the-badge"></a>\n'
+
+          header = f"""<div align="center">
+            <h1>{html.escape(os.environ["PROJECT_NAME"])}</h1>
+            <p>{html.escape(os.environ["SUMMARY"])}</p>
+
+            <p>
+          {chr(10).join(platform_lines)}
+            </p>
+
+            <p>
+              <a href="https://github.com/{os.environ["GITHUB_REPOSITORY"]}"><img alt="GitHub" src="https://tr7zw.github.io/uikit/social_buttons_icon/Github-Button-64.png"></a>
+              <a href="https://modrinth.com/project/{os.environ["PROJECT_SLUG"]}"><img alt="Modrinth" src="https://tr7zw.github.io/uikit/social_buttons_icon/Modrinth-Button-64.png"></a>
+              <a href="https://discord.gg/pes25cnWKy"><img alt="Discord" src="https://tr7zw.github.io/uikit/social_buttons_icon/Discord-Button-64.png"></a>
+            </p>
+
+            <p>
+          {metrics}    <a href="https://github.com/{os.environ["GITHUB_REPOSITORY"]}/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/{os.environ["GITHUB_REPOSITORY"]}?style=for-the-badge"></a>
+              <img alt="Java 25" src="https://img.shields.io/badge/Java-25-5382A1?style=for-the-badge">
+              <img alt="Minecraft 26.2" src="https://img.shields.io/badge/Minecraft-26.2-62B47A?style=for-the-badge">
+            </p>
+          </div>"""
+          Path("modrinth-description.md").write_text(header + "\n\n" + content.rstrip() + "\n", encoding="utf-8")
+          PY
+
+          if grep -Eqi 'mcolor-icon|project-icon|<img[^>]+alt="(mColor|Bad Recipe Book|Chat Utils|Clear Files|Folders)"' modrinth-description.md; then
+            echo "A project icon leaked into the long description" >&2
+            exit 1
+          fi
+
+          jq -n --rawfile body modrinth-description.md --arg title "$PROJECT_NAME" --arg description "$SUMMARY" --arg source "$source_url" --arg issues "$source_url/issues" --arg license "$LICENSE_ID" --arg license_url "$LICENSE_URL" --arg wiki "$WIKI_URL" --arg discord "https://discord.gg/pes25cnWKy" --arg support "https://miklires.su/support/" --argjson categories "$CATEGORIES" --argjson additional "$ADDITIONAL_CATEGORIES" '{title:$title,description:$description,body:$body,categories:$categories,additional_categories:$additional,source_url:$source,issues_url:$issues,license_id:$license,license_url:(if $license_url == "" then null else $license_url end),wiki_url:(if $wiki == "" then null else $wiki end),discord_url:$discord,donation_urls:[{id:"other",platform:"Other",url:$support}],requested_status:"approved"}' > modrinth-project.json
 
           curl --fail-with-body --silent --show-error --request PATCH --header "$auth" --header "$agent" --header "Content-Type: application/json" --data-binary @modrinth-project.json "$api/project/$project_id"
 
+          icon=".github/assets/modrinth-icon.png"
+          test -f "$icon"
+          test "$(stat -c%s "$icon")" -le 262144
+          curl --fail-with-body --silent --show-error --request PATCH --header "$auth" --header "$agent" --header "Content-Type: image/png" --data-binary @"$icon" "$api/project/$project_id/icon?ext=png"
+
+          if [ -n "$BSTATS_ID" ]; then
+            jq -n '{set:[{type:"telemetry",consent:"opt_out",data_collected:["https://bstats.org/docs/server-owners"]}],remove:[]}' > modrinth-disclosures.json
+          else
+            jq -n '{set:[],remove:["telemetry"]}' > modrinth-disclosures.json
+          fi
+          curl --fail-with-body --silent --show-error --request PATCH --header "$auth" --header "$agent" --header "Content-Type: application/json" --data-binary @modrinth-disclosures.json "$api_v3/project/$project_id/disclosures"
+
           result="$(curl --fail-with-body --silent --show-error --header "$auth" --header "$agent" "$api/project/$project_id")"
-          echo "$result" | jq -e --arg title "$PROJECT_NAME" --arg description "$SUMMARY" --arg source "$source_url" --arg issues "$source_url/issues" --arg wiki "$WIKI_URL" --argjson categories "$CATEGORIES" --argjson additional "$ADDITIONAL_CATEGORIES" 'select(.title == $title and .description == $description and .categories == $categories and .additional_categories == $additional and .source_url == $source and .issues_url == $issues and .discord_url == "https://discord.gg/pes25cnWKy" and .license.id == "MIT" and ((.body | length) > 200) and (if $wiki == "" then .wiki_url == null else .wiki_url == $wiki end)) | {id,slug,title,description,status,requested_status,categories,additional_categories,source_url,issues_url,wiki_url,discord_url,donation_urls,body_length:(.body | length)}'
+          echo "$result" | jq -e --arg title "$PROJECT_NAME" --arg description "$SUMMARY" --arg source "$source_url" --arg issues "$source_url/issues" --arg wiki "$WIKI_URL" --arg license "$LICENSE_ID" --argjson categories "$CATEGORIES" --argjson additional "$ADDITIONAL_CATEGORIES" 'select(.title == $title and .description == $description and .categories == $categories and .additional_categories == $additional and .source_url == $source and .issues_url == $issues and .discord_url == "https://discord.gg/pes25cnWKy" and .license.id == $license and (.icon_url != null) and ((.body | length) > 200) and (.body | startswith("<div align=\"center\">")) and (.body | contains("mcolor-icon") | not) and (if $wiki == "" then .wiki_url == null else .wiki_url == $wiki end)) | {id,slug,title,description,status,requested_status,categories,additional_categories,source_url,issues_url,wiki_url,discord_url,donation_urls,icon_url,body_length:(.body | length)}'
+
+          disclosures="$(curl --fail-with-body --silent --show-error --header "$auth" --header "$agent" "$api_v3/project/$project_id/disclosures")"
+          if [ -n "$BSTATS_ID" ]; then
+            echo "$disclosures" | jq -e '.disclosures | any(.type == "telemetry" and .consent == "opt_out")' >/dev/null
+          else
+            echo "$disclosures" | jq -e '.disclosures | all(.type != "telemetry")' >/dev/null
+          fi
