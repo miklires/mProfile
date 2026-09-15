@@ -19,7 +19,7 @@ jobs:
           SUMMARY: 'Private-by-design player profiles, statistics, privacy controls, and social integrations for Paper, Purpur, and Folia.'
           CATEGORIES: '["management","social"]'
           ADDITIONAL_CATEGORIES: '["utility"]'
-          PLATFORMS: 'paper,purpur,folia'
+          PLATFORMS: 'paper,purpur'
           BSTATS_ID: ''
           LICENSE_ID: 'MIT'
           LICENSE_URL: 'https://github.com/miklires/mProfile/blob/main/LICENSE'
@@ -64,7 +64,6 @@ jobs:
           platforms = {
               "paper": ("https://papermc.io/software/paper", "Paper", "https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/paper_vector.svg"),
               "purpur": ("https://purpurmc.org", "Purpur", "https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/purpur_vector.svg"),
-              "folia": ("https://papermc.io/software/folia", "Folia", "https://raw.githubusercontent.com/miklires/mBadges/main/docs/assets/folia-available.png"),
               "velocity": ("https://papermc.io/software/velocity", "Velocity", "https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/velocity_vector.svg"),
               "fabric": ("https://fabricmc.net", "Fabric", "https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/supported/fabric_vector.svg"),
           }
