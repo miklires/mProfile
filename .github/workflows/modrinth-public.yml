@@ -32,7 +32,7 @@ jobs:
           if [ -z "$project_id" ]; then echo "Draft project not found: $PROJECT_NAME"; exit 1; fi
           versions=$(curl -fsS -H "$auth" -H "$agent" "$api/project/$project_id/version")
           if ! jq -e --arg version "$VERSION_NUMBER" '.[] | select(.version_number==$version)' <<<"$versions" >/dev/null; then
-            data=$(jq -nc --arg name "$PROJECT_NAME $VERSION_NUMBER" --arg number "$VERSION_NUMBER" --arg project "$project_id" '{name:$name,version_number:$number,project_id:$project,dependencies:[],game_versions:["26.2"],version_type:"release",loaders:["paper","purpur","folia"],featured:true,status:"listed",file_parts:["file"],primary_file:"file"}')
+            data=$(jq -nc --arg name "$PROJECT_NAME $VERSION_NUMBER" --arg number "$VERSION_NUMBER" --arg project "$project_id" '{name:$name,version_number:$number,project_id:$project,dependencies:[],game_versions:["26.3"],version_type:"release",loaders:["paper","purpur","folia"],featured:true,status:"listed",file_parts:["file"],primary_file:"file"}')
             curl -fsS -X POST -H "$auth" -H "$agent" -F "data=$data" -F "file=@$JAR_PATH;type=application/java-archive" "$api/version" >/dev/null
             echo "Uploaded $PROJECT_NAME $VERSION_NUMBER"
           else

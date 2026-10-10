@@ -1,7 +1,7 @@
 name: mProfile
 version: ${version}
 main: io.github.miklires.mprofile.MProfilePlugin
-api-version: '26.2'
+api-version: '26.3'
 author: miklires
 description: Player profiles and interaction hub for modern Paper servers
 folia-supported: true

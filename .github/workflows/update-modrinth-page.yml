@@ -92,7 +92,7 @@ jobs:
             <p>
           {metrics}    <a href="https://github.com/{os.environ["GITHUB_REPOSITORY"]}/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/{os.environ["GITHUB_REPOSITORY"]}?style=for-the-badge"></a>
               <img alt="Java 25" src="https://img.shields.io/badge/Java-25-5382A1?style=for-the-badge">
-              <img alt="Minecraft 26.2" src="https://img.shields.io/badge/Minecraft-26.2-62B47A?style=for-the-badge">
+              <img alt="Minecraft 26.3" src="https://img.shields.io/badge/Minecraft-26.3-62B47A?style=for-the-badge">
             </p>
           </div>"""
           Path("modrinth-description.md").write_text(header + "\n\n" + content.rstrip() + "\n", encoding="utf-8")

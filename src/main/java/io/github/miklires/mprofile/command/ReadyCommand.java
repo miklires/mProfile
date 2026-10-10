@@ -1,5 +1,6 @@
 package io.github.miklires.mprofile.command;
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.miklires.mprofile.MProfilePlugin;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -18,7 +19,7 @@ public final class ReadyCommand implements BasicCommand {
         this.delegate = delegate;
     }
 
-    @Override public void execute(@NotNull CommandSourceStack source, @NotNull String[] args) {
+    @Override public void execute(@NotNull CommandSourceStack source, @NotNull String[] args) throws CommandSyntaxException {
         BasicCommand command = delegate.get();
         if (command == null) plugin.messages().send(source.getSender(), "loading");
         else command.execute(source, args);

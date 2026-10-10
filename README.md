@@ -34,7 +34,7 @@
 ## Requirements and installation
 
 - Java 25
-- Paper, Purpur, or Folia 26.2
+- Paper, Purpur, or Folia 26.3
 
 1. Put `mProfile-1.1.0.jar` in the server's `plugins` directory.
 2. Start the server once.
