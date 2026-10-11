@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 - 2026-10-11
+
+- Added full-width illustrated Forest, Nether, Ocean, End, and Space covers to native profile dialogs.
+- Added a bundled Minecraft 26.3 resource pack using isolated `mprofile:covers` bitmap-font glyphs.
+- Added optional automatic resource-pack delivery with URL, SHA-1, prompt, and required-pack controls.
+- Kept text covers as a safe fallback until the exact pack reports a successful client load.
+- Extracted the matching standalone resource-pack ZIP into the plugin data folder on first start.
+
 ## 1.2.0 - 2026-10-11
 
 - Added native Paper 26.3 profile and settings dialogs with a configurable inventory fallback.

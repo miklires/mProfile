@@ -22,6 +22,7 @@
 
 - Native 26.3 profile dialogs for online players and everyone previously seen by the server, with an inventory fallback.
 - Biography, configurable color theme and cover, plus `PUBLIC`, `LIMITED`, or `PRIVATE` visibility.
+- Optional full-width illustrated dialog covers supplied by the bundled Minecraft 26.3 resource pack, with automatic text fallback.
 - Personal controls for statistics, activity, integrations, and incoming message actions.
 - Playtime, player kills, deaths, first-seen, last-seen, and online status.
 - Shift-right-click access with a short configurable anti-spam cooldown.
@@ -38,7 +39,7 @@
 - Java 25
 - Paper, Purpur, or Folia 26.3
 
-1. Put `mProfile-1.2.0.jar` in the server's `plugins` directory.
+1. Put `mProfile-1.3.0.jar` in the server's `plugins` directory.
 2. Start the server once.
 3. Edit `plugins/mProfile/config.yml` if desired.
 4. Run `/profile reload`.
@@ -97,6 +98,17 @@ interactions:
 
 `SUGGEST` sends a clickable prompt that prepares the command. `RUN` executes it immediately and should only be used for commands that already perform their own permission and confirmation checks. Actions with `required-plugin` are hidden while that plugin is unavailable.
 
+## Illustrated profile covers
+
+Version 1.3.0 includes five original panoramic covers: Forest, Nether, Ocean, End, and Space. They are implemented as bitmap font glyphs in an optional Minecraft 26.3 resource pack, so the native dialog can display a real image instead of only the cover name.
+
+On first start, mProfile extracts `plugins/mProfile/mProfile-resource-pack-1.3.0.zip`. Choose one setup:
+
+1. Distribute that ZIP with `resource-pack` in `server.properties` or an existing pack manager. Then set `profile.cover-images.enabled: true` and `assume-loaded: true`.
+2. Host the unchanged ZIP at a direct HTTP(S) URL, set `enabled: true`, `auto-send: true`, `url`, and its lowercase SHA-1 from `sha1sum mProfile-resource-pack-1.3.0.zip`.
+
+With automatic delivery, mProfile displays an image only after the client reports that this exact pack loaded successfully. Declined, failed, missing, custom, and `NONE` covers retain the configured text presentation. The pack is optional and never changes stored profile data.
+
 ## Storage and safety
 
 Profile data is kept in `plugins/mProfile/profiles.mv.db`. Database access is serialized on a dedicated virtual thread and never blocks a server tick. Failed writes cannot roll back a newer cached update, corrupted privacy values fail closed, and shutdown waits at most five seconds before cancelling remaining storage tasks.
@@ -119,6 +131,6 @@ bStats is disabled by default until a public project ID is assigned. If enabled 
 ./gradlew clean build
 ```
 
-The plugin JAR is written to `build/libs`; API artifacts are written to `api/build/libs`.
+The plugin JAR is written to `build/libs`, the standalone cover pack to `build/distributions`, and API artifacts to `api/build/libs`.
 
 Licensed under the MIT License.

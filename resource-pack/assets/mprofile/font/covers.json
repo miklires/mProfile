@@ -1,0 +1,11 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "mprofile:font/covers.png",
+      "ascent": 80,
+      "height": 96,
+      "chars": ["\ue101\ue102\ue103\ue104\ue105"]
+    }
+  ]
+}

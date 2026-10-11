@@ -27,6 +27,24 @@ profile:
     OCEAN: "<aqua>🌊  OCEAN  🌊</aqua>"
     END: "<dark_purple>✦  THE END  ✦</dark_purple>"
     SPACE: "<gradient:#6a5acd:#00bfff>✦  SPACE  ✦</gradient>"
+  # Private-use glyphs supplied by the bundled mProfile resource pack.
+  cover-glyphs:
+    FOREST: "\uE101"
+    NETHER: "\uE102"
+    OCEAN: "\uE103"
+    END: "\uE104"
+    SPACE: "\uE105"
+  cover-images:
+    # Text covers remain the safe default until the matching pack is installed.
+    enabled: false
+    # Set true when the same pack is already distributed by server.properties or another pack manager.
+    assume-loaded: false
+    # Alternatively, host the extracted ZIP and let mProfile send it to each player.
+    auto-send: false
+    url: ""
+    sha1: ""
+    required: false
+    prompt: "Download the mProfile visual profile covers?"
 
 access:
   view-cooldown-millis: 750

@@ -7,6 +7,7 @@ import io.github.miklires.mprofile.gui.ProfileGui;
 import io.github.miklires.mprofile.message.MessageService;
 import io.github.miklires.mprofile.profile.ProfileListener;
 import io.github.miklires.mprofile.profile.ProfileService;
+import io.github.miklires.mprofile.resourcepack.ProfileResourcePack;
 import io.github.miklires.mprofile.storage.ProfileRepository;
 import io.github.miklires.mprofile.util.PluginScheduler;
 import io.papermc.paper.command.brigadier.BasicCommand;
@@ -19,6 +20,7 @@ public final class MProfilePlugin extends JavaPlugin {
     private PluginScheduler scheduler;
     private MessageService messages;
     private ProfileRepository repository;
+    private ProfileResourcePack resourcePack;
     private volatile BasicCommand command;
     private volatile boolean ready;
 
@@ -28,6 +30,7 @@ public final class MProfilePlugin extends JavaPlugin {
         saveLanguage("ru_RU");
         getConfig().options().copyDefaults(true);
         saveConfig();
+        saveBundledResourcePack();
         scheduler = new PluginScheduler(this);
         messages = new MessageService(this);
         registerCommandGateway();
@@ -44,10 +47,12 @@ public final class MProfilePlugin extends JavaPlugin {
             return;
         }
         ProfileService profiles = new ProfileService(this, repository);
-        ProfileGui gui = new ProfileGui(this, profiles, messages);
+        resourcePack = new ProfileResourcePack(this);
+        ProfileGui gui = new ProfileGui(this, profiles, messages, resourcePack);
         command = new ProfileCommand(this, profiles, gui, messages);
         getServer().getPluginManager().registerEvents(gui, this);
         getServer().getPluginManager().registerEvents(new ProfileListener(this, profiles), this);
+        getServer().getPluginManager().registerEvents(resourcePack, this);
         getServer().getServicesManager().register(MProfileApi.class, new ProfileApiService(profiles, gui),
                 this, ServicePriority.Normal);
         getServer().getOnlinePlayers().forEach(player -> profiles.find(player.getUniqueId()).whenComplete((ignored, loadError) -> {
@@ -77,6 +82,7 @@ public final class MProfilePlugin extends JavaPlugin {
         getConfig().options().copyDefaults(true);
         saveConfig();
         messages.reload();
+        if (resourcePack != null) resourcePack.reload();
     }
 
     private void registerCommandGateway() {
@@ -93,5 +99,20 @@ public final class MProfilePlugin extends JavaPlugin {
     private void saveLanguage(String language) {
         String path = "lang/" + language + ".yml";
         if (!new java.io.File(getDataFolder(), path).isFile()) saveResource(path, false);
+    }
+
+    private void saveBundledResourcePack() {
+        java.nio.file.Path target = getDataFolder().toPath().resolve(
+                "mProfile-resource-pack-" + getPluginMeta().getVersion() + ".zip");
+        if (java.nio.file.Files.isRegularFile(target)) return;
+        try (java.io.InputStream input = getResource("resource-pack/mProfile-resource-pack.zip")) {
+            if (input == null) {
+                getLogger().warning("The bundled mProfile resource pack is missing from the plugin JAR");
+                return;
+            }
+            java.nio.file.Files.copy(input, target);
+        } catch (java.io.IOException exception) {
+            getLogger().warning("Could not extract the bundled mProfile resource pack: " + exception.getMessage());
+        }
     }
 }

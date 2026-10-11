@@ -7,6 +7,7 @@ import io.github.miklires.mprofile.message.MessageService;
 import io.github.miklires.mprofile.profile.ProfileData;
 import io.github.miklires.mprofile.profile.ProfileService;
 import io.github.miklires.mprofile.profile.VisibilityPolicy;
+import io.github.miklires.mprofile.resourcepack.ProfileResourcePack;
 import io.github.miklires.mprofile.api.ProfileVisibility;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.dialog.DialogResponseView;
@@ -18,6 +19,7 @@ import io.papermc.paper.registry.data.dialog.body.DialogBody;
 import io.papermc.paper.registry.data.dialog.input.DialogInput;
 import io.papermc.paper.registry.data.dialog.input.SingleOptionDialogInput;
 import net.kyori.adventure.text.JoinConfiguration;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -53,13 +55,16 @@ public final class ProfileGui implements Listener {
     private final ProfileService profiles;
     private final MessageService messages;
     private final IntegrationService integrations;
+    private final ProfileResourcePack resourcePack;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final Map<UUID, Long> lastOpen = new ConcurrentHashMap<>();
 
-    public ProfileGui(MProfilePlugin plugin, ProfileService profiles, MessageService messages) {
+    public ProfileGui(MProfilePlugin plugin, ProfileService profiles, MessageService messages,
+                      ProfileResourcePack resourcePack) {
         this.plugin = plugin;
         this.profiles = profiles;
         this.messages = messages;
+        this.resourcePack = resourcePack;
         integrations = new IntegrationService(plugin);
     }
 
@@ -128,7 +133,7 @@ public final class ProfileGui implements Listener {
                 viewer.getUniqueId(), bypass) && (owner || bypass || profile.showStatistics());
         IntegrationSummary summary = integrations.read(profile.playerId());
         List<DialogBody> bodies = new ArrayList<>();
-        bodies.add(DialogBody.plainMessage(cover(profile.cover()), 400));
+        bodies.add(DialogBody.plainMessage(cover(profile.cover(), viewer), 400));
         Component biography = Component.text(profile.biography().isBlank()
                 ? messages.raw("gui-biography-empty", "No biography set") : profile.biography(), NamedTextColor.GRAY);
         bodies.add(DialogBody.item(head(profile, Component.text(profile.lastName()), List.of(status(profile))))
@@ -320,7 +325,7 @@ public final class ProfileGui implements Listener {
         Dialog dialog = Dialog.create(factory -> factory.empty().base(DialogBase.builder(
                         messages.component("dialog-settings-title", "<gold>Profile settings"))
                 .canCloseWithEscape(true).pause(false).afterAction(DialogBase.DialogAfterAction.CLOSE)
-                .body(List.of(DialogBody.plainMessage(cover(profile.cover()), 400))).inputs(inputs).build())
+                .body(List.of(DialogBody.plainMessage(cover(profile.cover(), player), 400))).inputs(inputs).build())
                 .type(provider.confirmation(save, cancel)));
         player.showDialog(dialog);
     }
@@ -373,6 +378,14 @@ public final class ProfileGui implements Listener {
                 "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         return miniMessage.deserialize(style == null || style.length() > 512
                 ? "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━" : style);
+    }
+
+    private Component cover(String name, Player viewer) {
+        if (!resourcePack.visualCoversAvailable(viewer)) return cover(name);
+        String normalized = name == null ? "NONE" : name.toUpperCase(Locale.ROOT);
+        String glyph = plugin.getConfig().getString("profile.cover-glyphs." + normalized, "");
+        if (glyph == null || glyph.codePointCount(0, glyph.length()) != 1) return cover(name);
+        return Component.text(glyph).font(Key.key("mprofile", "covers")).color(NamedTextColor.WHITE);
     }
 
     private void openInventory(Player viewer, ProfileData profile, boolean bypass) {

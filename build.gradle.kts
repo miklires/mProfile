@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "io.github.miklires"
-version = "1.2.0"
+version = "1.3.0"
 
 java { toolchain.languageVersion.set(JavaLanguageVersion.of(25)) }
 
@@ -26,13 +26,26 @@ dependencies {
 }
 
 tasks {
+    val resourcePack by registering(Zip::class) {
+        from(layout.projectDirectory.dir("resource-pack"))
+        archiveBaseName.set("mProfile-resource-pack")
+        archiveVersion.set(project.version.toString())
+        destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    }
+    processResources {
+        dependsOn(resourcePack)
+        from(resourcePack.flatMap { it.archiveFile }) {
+            into("resource-pack")
+            rename { "mProfile-resource-pack.zip" }
+        }
+    }
     jar { archiveClassifier.set("plain") }
     shadowJar {
         archiveClassifier.set("")
         archiveFileName.set("mProfile-${project.version}.jar")
         relocate("org.bstats", "io.github.miklires.mprofile.libs.bstats")
     }
-    build { dependsOn(shadowJar) }
+    build { dependsOn(shadowJar, resourcePack) }
     processResources { filesMatching("plugin.yml") { expand("version" to project.version) } }
     test { useJUnitPlatform() }
 }

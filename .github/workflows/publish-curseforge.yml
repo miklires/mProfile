@@ -59,14 +59,14 @@ jobs:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
         run: |
           set -euo pipefail
-          artifact="build/libs/mProfile-1.2.0.jar"
+          artifact="build/libs/mProfile-1.3.0.jar"
           test -n "$CURSEFORGE_PROJECT_ID"
           test -n "$CURSEFORGE_TOKEN"
           test -f "$artifact"
           metadata=$(jq -nc --rawfile changelog CHANGELOG.md '{
             changelog: $changelog,
             changelogType: "markdown",
-            displayName: "mProfile 1.2.0",
+            displayName: "mProfile 1.3.0",
             gameVersionNames: ["26.3"],
             releaseType: "release"
           }')
