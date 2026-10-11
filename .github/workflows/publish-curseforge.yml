@@ -9,8 +9,45 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MINIMUM_SPACING_HOURS: 48
     steps:
       - uses: actions/checkout@v7
+      - name: Enforce spacing between CurseForge submissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          now_epoch="$(date -u +%s)"
+          latest_epoch=0
+          latest_project=""
+          latest_time=""
+
+          for repo in mAuction mAuth mBadges mBans mCases mChat mClans mCodes mColor mCommand mCraft mEvents mMotd mProfile mProtect mReports mReputation BadRecipeBook ChatUtils ClearFiles Folders; do
+            published_at="$(gh api --method GET \
+              "repos/miklires/$repo/actions/workflows/publish-curseforge.yml/runs" \
+              -f status=success -f per_page=1 \
+              --jq '.workflow_runs[0].created_at // empty' 2>/dev/null || true)"
+            if [ -n "$published_at" ]; then
+              published_epoch="$(date -u -d "$published_at" +%s)"
+              if [ "$published_epoch" -gt "$latest_epoch" ]; then
+                latest_epoch="$published_epoch"
+                latest_project="$repo"
+                latest_time="$published_at"
+              fi
+            fi
+          done
+
+          if [ "$latest_epoch" -gt 0 ]; then
+            minimum_seconds="$((MINIMUM_SPACING_HOURS * 3600))"
+            elapsed_seconds="$((now_epoch - latest_epoch))"
+            if [ "$elapsed_seconds" -lt "$minimum_seconds" ]; then
+              remaining_seconds="$((minimum_seconds - elapsed_seconds))"
+              echo "CurseForge spacing guard: $latest_project was published at $latest_time."
+              echo "Wait another $(( (remaining_seconds + 3599) / 3600 )) hour(s) before publishing a different project."
+              exit 1
+            fi
+          fi
       - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: '25' }
       - uses: gradle/actions/setup-gradle@v6
