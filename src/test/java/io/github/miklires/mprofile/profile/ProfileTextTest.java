@@ -13,4 +13,8 @@ class ProfileTextTest {
         assertEquals(120, ProfileText.biography("x".repeat(200), 500).length());
         assertEquals("", ProfileText.biography("text", -10));
     }
+
+    @Test void acceptsMissingDialogValue() {
+        assertEquals("", ProfileText.biography(null, 120));
+    }
 }

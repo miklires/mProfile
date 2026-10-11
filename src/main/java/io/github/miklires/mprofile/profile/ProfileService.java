@@ -61,7 +61,10 @@ public final class ProfileService {
                 previous == null ? "" : previous.biography(), previous == null ? defaultVisibility : previous.visibility(),
                 previous == null ? configuredTheme() : previous.theme(),
                 previous == null ? firstSeen : previous.firstSeen(), now, player.getStatistic(Statistic.PLAY_ONE_MINUTE),
-                player.getStatistic(Statistic.PLAYER_KILLS), player.getStatistic(Statistic.DEATHS));
+                player.getStatistic(Statistic.PLAYER_KILLS), player.getStatistic(Statistic.DEATHS),
+                previous == null ? configuredCover() : previous.cover(),
+                previous == null || previous.showStatistics(), previous == null || previous.showActivity(),
+                previous == null || previous.showIntegrations(), previous == null || previous.allowMessages());
         cache.put(data.playerId(), data);
         return repository.save(data).whenComplete((ignored, error) -> {
             if (error != null) {
@@ -101,5 +104,12 @@ public final class ProfileService {
         if (theme == null) return "BLUE";
         theme = theme.toUpperCase(Locale.ROOT);
         return theme.matches("[A-Z0-9_-]{1,32}") ? theme : "BLUE";
+    }
+
+    private String configuredCover() {
+        String cover = plugin.getConfig().getString("profile.default-cover", "NONE");
+        if (cover == null) return "NONE";
+        cover = cover.toUpperCase(Locale.ROOT);
+        return cover.matches("[A-Z0-9_-]{1,32}") ? cover : "NONE";
     }
 }

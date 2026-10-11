@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "io.github.miklires"
-version = "1.1.1"
+version = "1.2.0"
 
 java { toolchain.languageVersion.set(JavaLanguageVersion.of(25)) }
 

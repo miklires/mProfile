@@ -38,7 +38,7 @@ public final class ProfileRepository implements AutoCloseable {
                 statement.executeUpdate("CREATE TABLE IF NOT EXISTS schema_version (version INT NOT NULL)");
                 try (ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM schema_version")) {
                     result.next();
-                    if (result.getInt(1) == 0) statement.executeUpdate("INSERT INTO schema_version(version) VALUES (1)");
+                    if (result.getInt(1) == 0) statement.executeUpdate("INSERT INTO schema_version(version) VALUES (2)");
                 }
                 statement.executeUpdate("""
                         CREATE TABLE IF NOT EXISTS profiles (
@@ -51,9 +51,20 @@ public final class ProfileRepository implements AutoCloseable {
                           last_seen BIGINT NOT NULL,
                           playtime_ticks BIGINT NOT NULL,
                           player_kills INT NOT NULL,
-                          deaths INT NOT NULL
+                          deaths INT NOT NULL,
+                          cover VARCHAR(32) NOT NULL DEFAULT 'NONE',
+                          show_statistics BOOLEAN NOT NULL DEFAULT TRUE,
+                          show_activity BOOLEAN NOT NULL DEFAULT TRUE,
+                          show_integrations BOOLEAN NOT NULL DEFAULT TRUE,
+                          allow_messages BOOLEAN NOT NULL DEFAULT TRUE
                         )
                         """);
+                statement.executeUpdate("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS cover VARCHAR(32) NOT NULL DEFAULT 'NONE'");
+                statement.executeUpdate("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_statistics BOOLEAN NOT NULL DEFAULT TRUE");
+                statement.executeUpdate("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_activity BOOLEAN NOT NULL DEFAULT TRUE");
+                statement.executeUpdate("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_integrations BOOLEAN NOT NULL DEFAULT TRUE");
+                statement.executeUpdate("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS allow_messages BOOLEAN NOT NULL DEFAULT TRUE");
+                statement.executeUpdate("UPDATE schema_version SET version = 2 WHERE version < 2");
             } catch (SQLException exception) {
                 throw new IllegalStateException("Could not initialize profile database", exception);
             }
@@ -73,7 +84,8 @@ public final class ProfileRepository implements AutoCloseable {
         return CompletableFuture.runAsync(() -> {
             try (Connection connection = connection(); PreparedStatement statement = connection.prepareStatement("""
                     MERGE INTO profiles (player_id,last_name,biography,visibility,theme,first_seen,last_seen,
-                      playtime_ticks,player_kills,deaths) KEY(player_id) VALUES (?,?,?,?,?,?,?,?,?,?)
+                      playtime_ticks,player_kills,deaths,cover,show_statistics,show_activity,show_integrations,
+                      allow_messages) KEY(player_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """)) {
                 statement.setObject(1, profile.playerId());
                 statement.setString(2, profile.lastName());
@@ -85,6 +97,11 @@ public final class ProfileRepository implements AutoCloseable {
                 statement.setLong(8, profile.playtimeTicks());
                 statement.setInt(9, profile.playerKills());
                 statement.setInt(10, profile.deaths());
+                statement.setString(11, profile.cover());
+                statement.setBoolean(12, profile.showStatistics());
+                statement.setBoolean(13, profile.showActivity());
+                statement.setBoolean(14, profile.showIntegrations());
+                statement.setBoolean(15, profile.allowMessages());
                 statement.executeUpdate();
             } catch (SQLException exception) {
                 throw new IllegalStateException("Could not save profile " + profile.playerId(), exception);
@@ -114,7 +131,9 @@ public final class ProfileRepository implements AutoCloseable {
                 result.getString("biography"), visibility,
                 result.getString("theme"), Instant.ofEpochMilli(result.getLong("first_seen")),
                 Instant.ofEpochMilli(result.getLong("last_seen")), result.getLong("playtime_ticks"),
-                result.getInt("player_kills"), result.getInt("deaths"));
+                result.getInt("player_kills"), result.getInt("deaths"), result.getString("cover"),
+                result.getBoolean("show_statistics"), result.getBoolean("show_activity"),
+                result.getBoolean("show_integrations"), result.getBoolean("allow_messages"));
     }
 
     private Connection connection() throws SQLException { return DriverManager.getConnection(jdbcUrl); }

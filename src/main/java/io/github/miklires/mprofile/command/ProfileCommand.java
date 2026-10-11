@@ -43,8 +43,49 @@ public final class ProfileCommand implements BasicCommand {
             case "bio" -> biography(player, args);
             case "visibility" -> visibility(player, args);
             case "theme" -> theme(player, args);
+            case "settings" -> settings(player);
+            case "inventory" -> inventory(player, args);
+            case "vote" -> vote(player, args);
             default -> openNamed(player, args[0]);
         }
+    }
+
+    private void settings(Player player) {
+        if (!player.hasPermission("mprofile.edit")) { messages.send(player, "no-permission"); return; }
+        gui.openSettings(player);
+    }
+
+    private void inventory(Player player, String[] args) {
+        if (args.length < 2) { gui.openInventory(player, player.getUniqueId()); return; }
+        openNamed(player, args[1], true);
+    }
+
+    private void vote(Player player, String[] args) {
+        if (!player.hasPermission("mprofile.vote")) { messages.send(player, "no-permission"); return; }
+        if (args.length < 3) { messages.send(player, "usage"); return; }
+        int direction = switch (args[2].toLowerCase(Locale.ROOT)) {
+            case "positive", "plus", "+" -> 1;
+            case "negative", "minus", "-" -> -1;
+            default -> 0;
+        };
+        if (direction == 0) { messages.send(player, "usage"); return; }
+        Player online = Bukkit.getPlayerExact(args[1]);
+        if (online != null) {
+            boolean scheduled = plugin.scheduler().player(online, () -> profiles.capture(online)
+                    .thenCompose(ignored -> profiles.find(online.getUniqueId()))
+                    .whenComplete((found, error) -> plugin.scheduler().player(player, () -> {
+                            if (error != null) messages.send(player, "storage-error");
+                            else if (found.isEmpty()) messages.send(player, "not-found", Map.of("player", args[1]));
+                            else gui.openVoteDialog(player, found.get(), direction);
+                        })));
+            if (!scheduled) messages.send(player, "not-found", Map.of("player", args[1]));
+            return;
+        }
+        profiles.findByName(args[1]).whenComplete((found, error) -> plugin.scheduler().player(player, () -> {
+            if (error != null) messages.send(player, "storage-error");
+            else if (found.isEmpty()) messages.send(player, "not-found", Map.of("player", args[1]));
+            else gui.openVoteDialog(player, found.get(), direction);
+        }));
     }
 
     private void biography(Player player, String[] args) {
@@ -76,11 +117,19 @@ public final class ProfileCommand implements BasicCommand {
     }
 
     private void openNamed(Player player, String name) {
+        openNamed(player, name, false);
+    }
+
+    private void openNamed(Player player, String name, boolean forceInventory) {
         Player online = Bukkit.getPlayerExact(name);
-        if (online != null) { gui.open(player, online.getUniqueId()); return; }
+        if (online != null) {
+            if (forceInventory) gui.openInventory(player, online.getUniqueId()); else gui.open(player, online.getUniqueId());
+            return;
+        }
         profiles.findByName(name).whenComplete((found, error) -> plugin.scheduler().player(player, () -> {
             if (error != null) messages.send(player, "storage-error");
             else if (found.isEmpty()) messages.send(player, "not-found", Map.of("player", name));
+            else if (forceInventory) gui.openInventory(player, found.get().playerId());
             else gui.open(player, found.get().playerId());
         }));
     }
@@ -103,7 +152,7 @@ public final class ProfileCommand implements BasicCommand {
     @Override public @NotNull Collection<String> suggest(@NotNull CommandSourceStack source, @NotNull String[] args) {
         CommandSender sender = source.getSender();
         if (args.length <= 1) {
-            var values = new java.util.ArrayList<>(List.of("bio", "visibility", "theme"));
+            var values = new java.util.ArrayList<>(List.of("bio", "visibility", "theme", "settings", "inventory", "vote"));
             if (sender.hasPermission("mprofile.reload")) values.add("reload");
             Bukkit.getOnlinePlayers().forEach(player -> values.add(player.getName()));
             return filter(values, args.length == 0 ? "" : args[0]);
@@ -112,6 +161,10 @@ public final class ProfileCommand implements BasicCommand {
             return filter(List.of("PUBLIC", "LIMITED", "PRIVATE"), args[1]);
         if (args.length == 2 && args[0].equalsIgnoreCase("theme"))
             return filter(configuredThemes(), args[1]);
+        if (args.length == 2 && (args[0].equalsIgnoreCase("inventory") || args[0].equalsIgnoreCase("vote")))
+            return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
+        if (args.length == 3 && args[0].equalsIgnoreCase("vote"))
+            return filter(List.of("positive", "negative"), args[2]);
         return List.of();
     }
 

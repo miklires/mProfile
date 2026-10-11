@@ -5,6 +5,7 @@ public final class ProfileText {
 
     public static String biography(String input, int configuredLimit) {
         int limit = Math.clamp(configuredLimit, 0, 120);
+        if (input == null || limit == 0) return "";
         StringBuilder clean = new StringBuilder(Math.min(input.length(), limit));
         boolean previousSpace = false;
         for (int index = 0; index < input.length() && clean.length() < limit; index++) {

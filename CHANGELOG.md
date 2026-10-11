@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0 - 2026-10-11
+
+- Added native Paper 26.3 profile and settings dialogs with a configurable inventory fallback.
+- Added curated profile covers and personal visibility controls for statistics, activity, integrations, and messages.
+- Added optional mReputation endorsements with an evidence form; controls appear only when voting is enabled.
+- Migrated existing H2 databases in place while keeping the public profile snapshot API binary-compatible.
+- Kept online-player capture on the owning entity scheduler for Paper and Folia safety.
+- Fixed the update checker treating an older Modrinth release as a newer version.
+
 ## 1.1.1 - 2026-10-10
 
 - Added Minecraft 26.3 compatibility, including the updated checked-exception contract in Paper's command API, and verified the build and tests.

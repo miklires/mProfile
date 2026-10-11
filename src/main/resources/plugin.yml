@@ -11,6 +11,7 @@ libraries:
 permissions:
   mprofile.use: { default: true }
   mprofile.edit: { default: true }
+  mprofile.vote: { default: true }
   mprofile.cooldown.bypass: { default: op }
   mprofile.view.private: { default: op }
   mprofile.admin:

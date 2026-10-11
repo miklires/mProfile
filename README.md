@@ -20,13 +20,15 @@
 
 ## Features
 
-- Profile GUI for online players and everyone previously seen by the server.
-- Biography, configurable color theme, and `PUBLIC`, `LIMITED`, or `PRIVATE` visibility.
+- Native 26.3 profile dialogs for online players and everyone previously seen by the server, with an inventory fallback.
+- Biography, configurable color theme and cover, plus `PUBLIC`, `LIMITED`, or `PRIVATE` visibility.
+- Personal controls for statistics, activity, integrations, and incoming message actions.
 - Playtime, player kills, deaths, first-seen, last-seen, and online status.
 - Shift-right-click access with a short configurable anti-spam cooldown.
 - Fully configurable GUI size, item slots, materials, and theme accent colors.
 - Optional message, report, and ignore buttons. Suggest mode lets the player confirm or complete a command before it runs.
 - Optional summaries from mBadges, mReputation, and mColor, without hard dependencies.
+- Opt-in mReputation endorsements with evidence and abuse protections; negative votes remain separately disabled by default.
 - English by default and a complete Russian translation selected in `config.yml`.
 - Asynchronous local H2 storage and a public Bukkit Services API.
 - Native Paper and Folia schedulers; player and inventory work stays on the owning entity thread.
@@ -36,7 +38,7 @@
 - Java 25
 - Paper, Purpur, or Folia 26.3
 
-1. Put `mProfile-1.1.0.jar` in the server's `plugins` directory.
+1. Put `mProfile-1.2.0.jar` in the server's `plugins` directory.
 2. Start the server once.
 3. Edit `plugins/mProfile/config.yml` if desired.
 4. Run `/profile reload`.
@@ -52,6 +54,9 @@ The generated defaults work without another plugin. Set `language.default: ru_RU
 | `/profile bio <text>` | `mprofile.edit` | Set a biography; omit text to clear it |
 | `/profile visibility <PUBLIC\|LIMITED\|PRIVATE>` | `mprofile.edit` | Set profile privacy |
 | `/profile theme <name>` | `mprofile.edit` | Select a configured theme |
+| `/profile settings` | `mprofile.edit` | Open personal profile settings |
+| `/profile inventory [player]` | `mprofile.use` | Force the classic inventory view |
+| `/profile vote <player> <positive\|negative>` | `mprofile.vote` | Open the evidence form for an enabled mReputation vote |
 | `/profile reload` | `mprofile.reload` | Reload configuration and language files |
 
 `mprofile.view.private` lets trusted staff inspect private profiles. `mprofile.cooldown.bypass` bypasses the viewing cooldown. `mprofile.admin` grants the staff permissions.
@@ -62,11 +67,11 @@ The generated defaults work without another plugin. Set `language.default: ru_RU
 - `LIMITED` allows the profile to open but hides detailed statistics.
 - `PRIVATE` blocks other players entirely unless they have the explicit bypass permission.
 
-The owner can always view their own profile. mProfile stores only the Minecraft UUID, last name, biography, privacy/theme preferences, and displayed gameplay statistics. It does not store IP addresses, chat, inventory contents, or location history.
+The owner can always view their own profile. Per-section switches can hide statistics, activity, integrations, or the message action without weakening the main visibility mode. mProfile stores only the Minecraft UUID, last name, biography, privacy/theme/cover preferences, and displayed gameplay statistics. It does not store IP addresses, chat, inventory contents, or location history.
 
 ## GUI and interactions
 
-Slots in `config.yml` use human-friendly numbering from `1` through the configured inventory size. Invalid materials and slots fall back or are skipped safely; duplicate slots never create multiple actions.
+`gui.mode: DIALOG` uses Paper's native 26.3 dialog API. Set it to `INVENTORY`, use `/profile inventory`, or keep `gui.fallback-to-inventory: true` for the classic view. Inventory slots in `config.yml` use human-friendly numbering from `1` through the configured size. Invalid materials and slots fall back or are skipped safely; duplicate slots never create multiple actions.
 
 ```yaml
 language:

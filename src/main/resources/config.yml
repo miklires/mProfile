@@ -1,4 +1,4 @@
-config-version: 2
+config-version: 3
 
 language:
   # Available out of the box: en_US and ru_RU.
@@ -9,6 +9,7 @@ profile:
   default-visibility: PUBLIC
   maximum-biography-length: 120
   default-theme: BLUE
+  default-cover: NONE
   # Theme names are case-insensitive and shown in command suggestions.
   themes: [BLUE, GREEN, RED, PURPLE, GOLD]
   theme-colors:
@@ -17,6 +18,15 @@ profile:
     RED: "<red>"
     PURPLE: "<light_purple>"
     GOLD: "<gold>"
+  # Covers are server-defined, safe presentation presets. Resource-pack glyphs may be used here.
+  covers: [NONE, FOREST, NETHER, OCEAN, END, SPACE]
+  cover-styles:
+    NONE: "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    FOREST: "<dark_green>🌲  FOREST  🌲</dark_green>"
+    NETHER: "<dark_red>🔥  NETHER  🔥</dark_red>"
+    OCEAN: "<aqua>🌊  OCEAN  🌊</aqua>"
+    END: "<dark_purple>✦  THE END  ✦</dark_purple>"
+    SPACE: "<gradient:#6a5acd:#00bfff>✦  SPACE  ✦</gradient>"
 
 access:
   view-cooldown-millis: 750
@@ -26,6 +36,9 @@ access:
     cancel-interaction: false
 
 gui:
+  # DIALOG uses the native 26.3 UI. INVENTORY keeps the classic chest interface.
+  mode: DIALOG
+  fallback-to-inventory: true
   # Leave empty to use the translated gui-title value from the language file.
   title: ""
   size: 54
@@ -36,11 +49,17 @@ gui:
     statistics: 23
     integrations: 25
     activity: 41
+    cover: 5
+    settings: 53
+    positive-vote: 46
+    negative-vote: 54
   materials:
     biography: WRITABLE_BOOK
     statistics: DIAMOND_SWORD
     integrations: NAME_TAG
     activity: CLOCK
+    cover: WHITE_BANNER
+    settings: COMPARATOR
 
 interactions:
   enabled: true
