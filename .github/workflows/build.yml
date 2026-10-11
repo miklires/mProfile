@@ -19,4 +19,5 @@ jobs:
           name: "mProfile-${{ github.sha }}"
           path: |
             build/libs/mProfile-*.jar
+            !build/libs/*-plain.jar
             build/distributions/mProfile-resource-pack-*.zip
